@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Tripo3D GLB Downloader (Sidebar Pro)",
+  "version": "2.0.0",
+  "description": "Extrai e baixa modelos 3D (.glb, .fbx) diretamente do studio.tripo3d.ai com 1 clique na barra lateral do Edge.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel",
+    "downloads",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://studio.tripo3d.ai/*",
+    "https://*.tripo3d.ai/*",
+    "https://api.tripo3d.ai/*",
+    "https://*.data.tripo3d.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Abrir Tripo3D Downloader na Barra Lateral",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "author": "Bieuulls (https://github.com/Bieuulls)",
+  "homepage_url": "https://github.com/Bieuulls/TRIPO_EDGE_EXTENSION"
+}
