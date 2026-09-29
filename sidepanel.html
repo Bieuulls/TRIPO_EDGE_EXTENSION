@@ -12,46 +12,86 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    body {
+    html, body {
+      height: 100%;
       background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
       color: #e6edf3;
-      padding: 16px;
-      min-height: 100vh;
+      overflow-y: auto;
+    }
+
+    body {
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
     }
 
     .header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .logo-icon {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       background: linear-gradient(135deg, #a855f7 0%, #00ffb2 100%);
-      border-radius: 10px;
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 18px;
       box-shadow: 0 4px 12px rgba(0, 255, 178, 0.3);
+      flex-shrink: 0;
     }
 
     .header-text h1 {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #ffffff;
-      letter-spacing: -0.3px;
+      letter-spacing: -0.2px;
     }
 
     .header-text p {
       font-size: 11px;
       color: #8b949e;
+    }
+
+    /* GitHub Top Highlight Pill */
+    .github-pill-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.15) 0%, rgba(0, 255, 178, 0.15) 100%);
+      border: 1px solid rgba(0, 255, 178, 0.35);
+      border-radius: 8px;
+      padding: 7px 10px;
+      text-decoration: none;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .github-pill-header:hover {
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.25) 0%, rgba(0, 255, 178, 0.25) 100%);
+      border-color: #00ffb2;
+      transform: translateY(-1px);
     }
 
     .status-container {
@@ -121,8 +161,8 @@
       background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
       color: white;
       border: none;
-      padding: 13px 16px;
-      border-radius: 10px;
+      padding: 12px 14px;
+      border-radius: 9px;
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
@@ -130,21 +170,21 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 16px rgba(234, 88, 12, 0.35);
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
       transition: all 0.2s ease;
     }
 
     .btn-blender:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.5);
+      box-shadow: 0 6px 18px rgba(234, 88, 12, 0.5);
     }
 
     .btn-download {
       background: linear-gradient(135deg, #8b5cf6 0%, #00ffb2 100%);
       color: #0d1117;
       border: none;
-      padding: 13px 16px;
-      border-radius: 10px;
+      padding: 12px 14px;
+      border-radius: 9px;
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
@@ -152,13 +192,13 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 16px rgba(0, 255, 178, 0.25);
+      box-shadow: 0 4px 14px rgba(0, 255, 178, 0.25);
       transition: all 0.2s ease;
     }
 
     .btn-download:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 255, 178, 0.45);
+      box-shadow: 0 6px 18px rgba(0, 255, 178, 0.45);
     }
 
     .btn-download:disabled, .btn-blender:disabled {
@@ -172,15 +212,15 @@
     .card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 9px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
 
     .card-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -190,8 +230,8 @@
     .info-row {
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
-      padding: 3px 0;
+      font-size: 11px;
+      padding: 2px 0;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
 
@@ -202,41 +242,41 @@
       background: #090d13;
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
-      padding: 10px;
+      padding: 8px 10px;
       font-family: monospace;
       font-size: 11px;
       color: #00ffb2;
-      max-height: 100px;
+      max-height: 80px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
       display: none;
     }
 
+    /* Community & Credits Card */
     .community-card {
       background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(0, 255, 178, 0.1) 100%);
-      border: 1px solid rgba(0, 255, 178, 0.28);
-      border-radius: 10px;
-      padding: 14px;
-      margin-top: auto;
+      border: 1px solid rgba(0, 255, 178, 0.3);
+      border-radius: 9px;
+      padding: 11px 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 7px;
     }
 
     .community-header {
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 12px;
+      gap: 6px;
+      font-size: 11px;
       font-weight: 700;
       color: #00ffb2;
     }
 
     .community-text {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #c9d1d9;
-      line-height: 1.45;
+      line-height: 1.4;
     }
 
     .community-text strong {
@@ -247,14 +287,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 7px;
+      gap: 6px;
       background: #21262d;
       color: #ffffff;
       text-decoration: none;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
-      padding: 9px 14px;
-      border-radius: 8px;
+      padding: 8px 12px;
+      border-radius: 7px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       transition: all 0.2s ease;
       cursor: pointer;
@@ -277,6 +317,12 @@
       <p>Download & Envio Direto pro Blender</p>
     </div>
   </div>
+
+  <!-- Barra de Destaque GitHub Topo -->
+  <a href="https://github.com/Bieuulls/TRIPO_EDGE_EXTENSION" target="_blank" class="github-pill-header" id="btnGithubTop">
+    <span>⭐ Apoie com Estrelas no GitHub</span>
+    <span style="color: #00ffb2;">@Bieuulls ➔</span>
+  </a>
 
   <div class="status-container">
     <div id="statusBadge" class="status-badge">
@@ -318,13 +364,13 @@
   <div class="community-card">
     <div class="community-header">
       <span>⭐</span>
-      <span>Apoie no GitHub & Créditos</span>
+      <span>Apoie o Projeto & Créditos</span>
     </div>
     <p class="community-text">
       Ajude com <strong>estrelas no repositório</strong> ⭐ e divulgue para seus amigos! Ao utilizar não esqueça dos créditos. Qualquer ajuda e melhoria do projeto será bem-vinda!
     </p>
-    <a href="https://github.com/Bieuulls" target="_blank" class="btn-github">
-      <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor">
+    <a href="https://github.com/Bieuulls/TRIPO_EDGE_EXTENSION" target="_blank" class="btn-github" id="btnGithubBottom">
+      <svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
       </svg>
       Desenvolvido por Bieuulls (GitHub)

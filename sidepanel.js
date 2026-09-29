@@ -223,3 +223,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (changeInfo.status === 'complete') checkActiveTab();
   });
 });
+
+
+// Abrir link do GitHub em nova aba no Edge/Chrome
+function openGithubTab(e) {
+  if (e) e.preventDefault();
+  const url = 'https://github.com/Bieuulls/TRIPO_EDGE_EXTENSION';
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url: url });
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+document.getElementById('btnGithubTop')?.addEventListener('click', openGithubTab);
+document.getElementById('btnGithubBottom')?.addEventListener('click', openGithubTab);
