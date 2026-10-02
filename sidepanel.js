@@ -3,18 +3,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusText = document.getElementById('statusText');
   const blenderBadge = document.getElementById('blenderBadge');
   const blenderStatusText = document.getElementById('blenderStatusText');
-  const btnDownload = document.getElementById('btnDownload');
+  const btnDownloadAll = document.getElementById('btnDownloadAll');
   const btnSendBlender = document.getElementById('btnSendBlender');
   const detailsCard = document.getElementById('detailsCard');
-  const txtFilename = document.getElementById('txtFilename');
+  const txtModelCount = document.getElementById('txtModelCount');
+  const modelList = document.getElementById('modelList');
   const logBox = document.getElementById('logBox');
 
   let activeTab = null;
-  let apiModelUrl = null;
   let detectedTitle = 'tripo_model';
+  let foundModels = []; // [{ url, filename, type, sizeLabel }]
   let blenderConnected = false;
 
   function setStatus(text, type = 'normal') {
+    if (!statusText || !statusBadge) return;
     statusText.textContent = text;
     statusBadge.className = 'status-badge';
     if (type === 'ready') statusBadge.classList.add('ready');
@@ -23,14 +25,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function setBlenderStatus(connected, version = '') {
     blenderConnected = connected;
+    if (!blenderBadge || !blenderStatusText) return;
     if (connected) {
       blenderBadge.className = 'blender-badge connected';
       blenderStatusText.textContent = `🟢 Blender Conectado (${version || 'Porta 8766'})`;
-      btnSendBlender.disabled = !apiModelUrl;
+      if (btnSendBlender) btnSendBlender.disabled = (foundModels.length === 0);
     } else {
       blenderBadge.className = 'blender-badge';
       blenderStatusText.textContent = '⚪ Blender Offline (Inicie o script)';
-      btnSendBlender.disabled = true;
+      if (btnSendBlender) btnSendBlender.disabled = true;
     }
   }
 
@@ -41,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 1. Verificar conexão com o Blender HTTP Bridge
   async function checkBlenderBridge() {
     try {
       const resp = await fetch('http://127.0.0.1:8766/status');
@@ -56,36 +58,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function extractUUID(url) {
-    if (!url) return null;
-    const m = url.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-    return m ? m[0] : null;
+  function extractSlug(url) {
+    if (!url) return 'tripo_model';
+    try {
+      const u = new URL(url);
+      const parts = u.pathname.split('/').filter(Boolean);
+      return parts[parts.length - 1] || 'tripo_model';
+    } catch (e) {
+      return 'tripo_model';
+    }
   }
 
-  // 2. Verificar aba ativa do Tripo
   async function checkActiveTab() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.url) {
         setStatus('Aba não identificada', 'error');
-        btnDownload.disabled = true;
-        btnSendBlender.disabled = true;
+        if (btnDownloadAll) btnDownloadAll.disabled = true;
+        if (btnSendBlender) btnSendBlender.disabled = true;
         return null;
       }
 
       if (tab.url.includes('tripo3d.ai')) {
-        setStatus('Pronto! Página do Tripo detectada', 'ready');
+        setStatus('Escaneando modelos na página...', 'normal');
         activeTab = tab;
-
-        const uuid = extractUUID(tab.url);
-        if (uuid) {
-          checkProjectViaTab(tab.id, uuid, tab.url);
-        }
+        detectedTitle = extractSlug(tab.url);
+        await scanTabForAllModels(tab.id);
         return tab;
       } else {
         setStatus('Abra o studio.tripo3d.ai', 'normal');
-        btnDownload.disabled = true;
-        btnSendBlender.disabled = true;
+        if (btnDownloadAll) btnDownloadAll.disabled = true;
+        if (btnSendBlender) btnSendBlender.disabled = true;
         return null;
       }
     } catch (err) {
@@ -94,147 +97,244 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 3. Consultar API do Tripo de dentro da aba (world: MAIN)
-  async function checkProjectViaTab(tabId, uuid, pageUrl) {
+  // Escaneia a aba para encontrar TODOS os arquivos 3D (.glb, .fbx, .obj)
+  async function scanTabForAllModels(tabId) {
     try {
-      setStatus('Identificando modelo na página...', 'normal');
       const results = await chrome.scripting.executeScript({
         target: { tabId: tabId },
         world: 'MAIN',
-        func: async (projId) => {
-          try {
-            const res = await window.fetch(`https://api.tripo3d.ai/v2/studio/project/detail/v3/${projId}`);
-            if (!res.ok) return { error: `HTTP ${res.status}` };
-            return { success: true, json: await res.json() };
-          } catch(e) {
-            return { error: e.message };
+        func: (baseSlug) => {
+          const found = [];
+          const seenUrls = new Set();
+
+          function addUrl(rawUrl, sourceHint) {
+            if (!rawUrl || typeof rawUrl !== 'string') return;
+            const clean = rawUrl.replace(/\\u002F/g, '/').replace(/&amp;/g, '&');
+            if (seenUrls.has(clean)) return;
+            seenUrls.add(clean);
+
+            const lower = clean.toLowerCase();
+            let type = 'GLB';
+            if (lower.includes('.fbx')) type = 'FBX';
+            else if (lower.includes('.obj')) type = 'OBJ';
+            else if (lower.includes('.stl')) type = 'STL';
+
+            // Determina nome amigável
+            let baseFile = clean.split('?')[0].split('/').pop() || `${baseSlug}.${type.toLowerCase()}`;
+            if (baseFile.includes('output_point_cloud')) return; // ignora point clouds brutos se houver
+            if (baseFile.includes('gizmo')) return;
+
+            let tag = type;
+            if (lower.includes('rig')) tag = 'FBX Rigged';
+            else if (lower.includes('meshopt') || lower.includes('texture')) tag = 'GLB PBR Mesh';
+            else if (lower.includes('retopology')) tag = 'GLB Quad Remesh';
+
+            found.push({
+              url: clean,
+              filename: `${baseSlug}_${baseFile}`,
+              baseName: baseFile,
+              type: tag,
+              rawType: type,
+              source: sourceHint
+            });
           }
+
+          // 1. Procura no cache de rede (PerformanceResourceTiming)
+          try {
+            const res = performance.getEntriesByType('resource') || [];
+            for (const r of res) {
+              if (r.name && (r.name.includes('.glb') || r.name.includes('.fbx') || r.name.includes('.obj'))) {
+                if (!r.name.includes('blob:')) {
+                  addUrl(r.name, 'Cache de Rede');
+                }
+              }
+            }
+          } catch(e) {}
+
+          // 2. Procura nos scripts HTML e Nuxt Data
+          try {
+            const scripts = Array.from(document.querySelectorAll('script'));
+            for (const s of scripts) {
+              const text = s.textContent || '';
+              if (text.includes('.glb') || text.includes('.fbx') || text.includes('.obj')) {
+                const matches = text.match(/https?:\/\/[^\s"'<>]+\.(?:glb|gltf|fbx|obj)[^\s"'<>]*/gi);
+                if (matches) {
+                  for (const m of matches) addUrl(m, 'Nuxt Payload');
+                }
+              }
+            }
+          } catch(e) {}
+
+          // 3. Procura no Nuxt State se disponível
+          try {
+            const dataStr = JSON.stringify(window.__NUXT_DATA__ || window.__NUXT__ || {});
+            const matches = dataStr.match(/https?:\/\/[^\s"'<>]+\.(?:glb|gltf|fbx|obj)[^\s"'<>]*/gi);
+            if (matches) {
+              for (const m of matches) addUrl(m, 'Nuxt State');
+            }
+          } catch(e) {}
+
+          return found;
         },
-        args: [uuid]
+        args: [detectedTitle]
       });
 
-      const res = results?.[0]?.result;
-      if (res && res.success && res.json) {
-        const data = res.json.data || {};
-        try {
-          const parts = pageUrl.split('/');
-          const slug = parts[parts.length - 1];
-          detectedTitle = slug.replace(`-${uuid}`, '');
-        } catch(e) {}
+      const list = results?.[0]?.result || [];
+      foundModels = list;
 
-        function findGlb(obj) {
-          if (!obj || typeof obj !== 'object') return null;
-          for (const k in obj) {
-            const val = obj[k];
-            if (typeof val === 'string' && val.startsWith('http') && val.includes('.glb') && val.includes('tripo-data')) {
-              return val;
-            }
-            if (typeof val === 'object') {
-              const f = findGlb(val);
-              if (f) return f;
-            }
-          }
-          return null;
-        }
-
-        const directUrl = findGlb(data);
-        if (directUrl) {
-          apiModelUrl = directUrl;
-          setStatus('🟢 Modelo Pronto!', 'ready');
-          btnDownload.disabled = false;
-          if (blenderConnected) btnSendBlender.disabled = false;
-
-          detailsCard.style.display = 'block';
-          txtFilename.textContent = detectedTitle;
-          showLog('Arquivo oficial PBR pronto para baixar ou enviar pro Blender.');
-          return;
-        }
+      if (foundModels.length > 0) {
+        setStatus(`🟢 ${foundModels.length} Modelo(s) Encontrado(s)!`, 'ready');
+        if (btnDownloadAll) btnDownloadAll.disabled = false;
+        if (blenderConnected && btnSendBlender) btnSendBlender.disabled = false;
+        renderModelList();
+      } else {
+        setStatus('Pronto para extrair da tela!', 'ready');
+        if (btnDownloadAll) btnDownloadAll.disabled = false;
       }
-
-      btnDownload.disabled = false;
-      setStatus('Pronto para extrair da tela!', 'ready');
-    } catch(err) {
-      btnDownload.disabled = false;
+    } catch (e) {
+      if (btnDownloadAll) btnDownloadAll.disabled = false;
     }
   }
 
-  // 4. AÇÃO: ENVIAR DIRETO PRO BLENDER COM 1 CLIQUE
-  btnSendBlender.addEventListener('click', async () => {
-    if (!apiModelUrl) return;
-    btnSendBlender.disabled = true;
-    const oldHtml = btnSendBlender.innerHTML;
-    btnSendBlender.innerHTML = '<span>⏳</span> Enviando pro Blender...';
+  function renderModelList() {
+    if (!detailsCard || !modelList) return;
+    detailsCard.style.display = 'block';
+    if (txtModelCount) txtModelCount.textContent = `${foundModels.length} arquivo(s)`;
+    modelList.innerHTML = '';
 
-    try {
-      const resp = await fetch('http://127.0.0.1:8766/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: apiModelUrl,
-          name: detectedTitle
-        })
+    foundModels.forEach((m, idx) => {
+      const item = document.createElement('div');
+      item.className = 'model-item';
+
+      const tagClass = m.rawType === 'FBX' ? 'tag-fbx' : (m.rawType === 'OBJ' ? 'tag-obj' : 'tag-glb');
+
+      item.innerHTML = `
+        <div class="model-info">
+          <span class="model-type-tag ${tagClass}">${m.type}</span>
+          <span class="model-name" title="${m.baseName}">${m.baseName}</span>
+        </div>
+        <button class="btn-item-dl" data-idx="${idx}">📥 Baixar</button>
+      `;
+
+      item.querySelector('button').addEventListener('click', () => {
+        downloadSingleModel(m);
       });
 
-      if (resp.ok) {
-        btnSendBlender.innerHTML = '<span>✔</span> Modelo Apareceu no Blender!';
-        showLog(`Sucesso! ${detectedTitle} foi importado direto na cena do seu Blender em tempo real.`);
-      } else {
-        throw new Error('Falha no servidor Blender');
-      }
-    } catch (err) {
-      btnSendBlender.innerHTML = '<span>❌</span> Erro de Conexão';
-      showLog('Certifique-se de que o Blender está aberto com o bridge ativo.');
-    } finally {
-      setTimeout(() => {
-        btnSendBlender.innerHTML = oldHtml;
-        btnSendBlender.disabled = false;
-      }, 4000);
-    }
-  });
+      modelList.appendChild(item);
+    });
+  }
 
-  // 5. AÇÃO: BAIXAR ARQUIVO LOCALMENTE
-  btnDownload.addEventListener('click', async () => {
-    if (!apiModelUrl) return;
-    btnDownload.disabled = true;
-    const oldHtml = btnDownload.innerHTML;
-    btnDownload.innerHTML = '<span>⏳</span> Baixando...';
-
+  function downloadSingleModel(m) {
     chrome.runtime.sendMessage({
       action: 'DOWNLOAD_3D_MODEL',
-      url: apiModelUrl,
-      filename: `${detectedTitle}.glb`
+      url: m.url,
+      filename: m.filename
     }, (res) => {
-      btnDownload.innerHTML = '<span>✔</span> Salvo em Downloads!';
-      showLog(`Arquivo ${detectedTitle}.glb salvo na sua pasta Downloads.`);
-      setTimeout(() => {
-        btnDownload.innerHTML = oldHtml;
-        btnDownload.disabled = false;
-      }, 3500);
+      showLog(`Iniciado download de: ${m.filename}`);
     });
-  });
-
-  // Iniciar checagens
-  await checkBlenderBridge();
-  await checkActiveTab();
-  setInterval(checkBlenderBridge, 4000);
-
-  chrome.tabs.onActivated.addListener(checkActiveTab);
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'complete') checkActiveTab();
-  });
-});
-
-
-// Abrir link do GitHub em nova aba no Edge/Chrome
-function openGithubTab(e) {
-  if (e) e.preventDefault();
-  const url = 'https://github.com/Bieuulls/TRIPO_EDGE_EXTENSION';
-  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-    chrome.tabs.create({ url: url });
-  } else {
-    window.open(url, '_blank');
   }
-}
 
-document.getElementById('btnGithubTop')?.addEventListener('click', openGithubTab);
-document.getElementById('btnGithubBottom')?.addEventListener('click', openGithubTab);
+  // BAIXAR TODOS OS MODELOS ENCONTRADOS
+  if (btnDownloadAll) {
+    btnDownloadAll.addEventListener('click', async () => {
+      btnDownloadAll.disabled = true;
+      const oldHtml = btnDownloadAll.innerHTML;
+      btnDownloadAll.innerHTML = '<span>⏳</span> Baixando Tudo...';
+
+      try {
+        if (foundModels.length > 0) {
+          for (let i = 0; i < foundModels.length; i++) {
+            const m = foundModels[i];
+            chrome.runtime.sendMessage({
+              action: 'DOWNLOAD_3D_MODEL',
+              url: m.url,
+              filename: m.filename
+            });
+            // Pequeno delay entre downloads para a fila do Edge
+            await new Promise(r => setTimeout(r, 400));
+          }
+          btnDownloadAll.innerHTML = '<span>✔</span> Todos Baixados!';
+          showLog(`Sucesso! ${foundModels.length} modelo(s) salvos na pasta Downloads!`);
+          return;
+        }
+
+        // Se nenhum arquivo direto na lista, executa extractor.js na tela
+        btnDownloadAll.innerHTML = '<span>⏳</span> Extraindo da tela...';
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) throw new Error('Aba não encontrada');
+
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          world: 'MAIN',
+          files: ['extractor.js']
+        });
+
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          world: 'MAIN',
+          func: async () => {
+            if (typeof window.__extractTripoGLB === 'function') {
+              return await window.__extractTripoGLB();
+            }
+            return { success: false, error: 'Função de extração não encontrada.' };
+          }
+        });
+
+        const res = results?.[0]?.result;
+        if (res && res.success) {
+          btnDownloadAll.innerHTML = '<span>✔</span> Baixado com Sucesso!';
+          showLog(`Sucesso! ${res.filename} salvo em Downloads!`);
+        } else {
+          throw new Error(res?.error || 'Falha ao extrair da tela');
+        }
+
+      } catch (err) {
+        btnDownloadAll.innerHTML = '<span>❌</span> Erro';
+        showLog('Erro: ' + err.message);
+      } finally {
+        setTimeout(() => {
+          btnDownloadAll.innerHTML = oldHtml;
+          btnDownloadAll.disabled = false;
+        }, 4000);
+      }
+    });
+  }
+
+  // ENVIAR GLB PRINCIPAL PRO BLENDER
+  if (btnSendBlender) {
+    btnSendBlender.addEventListener('click', async () => {
+      btnSendBlender.disabled = true;
+      const oldHtml = btnSendBlender.innerHTML;
+      btnSendBlender.innerHTML = '<span>⏳</span> Enviando pro Blender...';
+
+      try {
+        const glbModel = foundModels.find(m => m.rawType === 'GLB') || foundModels[0];
+        if (glbModel) {
+          const resp = await fetch('http://127.0.0.1:8766/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: glbModel.url, name: detectedTitle })
+          });
+          if (resp.ok) {
+            btnSendBlender.innerHTML = '<span>✔</span> Modelo no Blender!';
+            showLog(`Sucesso! ${glbModel.filename} importado no Blender.`);
+            return;
+          }
+        }
+        btnDownloadAll.click();
+      } catch (err) {
+        btnSendBlender.innerHTML = '<span>❌</span> Erro';
+        showLog('Erro: ' + err.message);
+      } finally {
+        setTimeout(() => {
+          btnSendBlender.innerHTML = oldHtml;
+          btnSendBlender.disabled = false;
+        }, 4000);
+      }
+    });
+  }
+
+  await checkActiveTab();
+  await checkBlenderBridge();
+  setInterval(checkBlenderBridge, 3000);
+});

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tripo3D GLB Downloader (Sidebar Pro)",
-  "version": "2.0.0",
-  "description": "Extrai e baixa modelos 3D (.glb, .fbx) diretamente do studio.tripo3d.ai com 1 clique na barra lateral do Edge.",
+  "version": "2.5.0",
+  "description": "Extrai e baixa todos os formatos 3D (.glb, .fbx, .obj) diretamente do studio.tripo3d.ai com 1 clique e integra com o Blender.",
   "permissions": [
     "activeTab",
     "scripting",
